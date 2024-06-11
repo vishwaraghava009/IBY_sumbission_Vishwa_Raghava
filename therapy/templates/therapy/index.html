@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Virtual Therapist</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        .container {
+            max-width: 800px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        form {
+            margin-bottom: 20px;
+        }
+        .video-container, .transcript-container {
+            margin-top: 20px;
+        }
+        video {
+            width: 100%;
+            height: auto;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+        }
+        .transcript {
+            background: #f9f9f9;
+            padding: 10px;
+            border-radius: 10px;
+            border: 1px solid #ddd;
+            height: 100px;
+            overflow-y: auto;
+        }
+        .emotion {
+            margin-top: 20px;
+            padding: 10px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 1.2em;
+        }
+        .llm-response {
+            margin-top: 20px;
+            padding: 10px;
+            background: #d0d0d0;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 1.2em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Welcome to Virtual Therapist</h1>
+        <p>Upload an image of your therapist below.</p>
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="file" name="therapist_image" accept="image/*" required>
+            <button type="submit">Upload</button>
+        </form>
+        {% if uploaded_file_url %}
+            <div class="uploaded-image">
+                <h2>Uploaded Therapist Image</h2>
+                <img src="{{ uploaded_file_url }}" alt="Therapist Image" style="max-width: 100%; height: auto; border-radius: 10px;">
+            </div>
+        {% endif %}
+        <div class="video-container">
+            <h2>Emotion Detection</h2>
+            <video id="video" autoplay></video>
+            <div class="emotion" id="emotion">Emotion: </div>
+        </div>
+        <div class="transcript-container">
+            <h2>Speech Transcript</h2>
+            <div class="transcript" id="transcript"></div>
+            <div class="llm-response" id="llm-response"></div>
+            <button id="recordButton">Record</button>
+            <button id="stopButton" disabled>Stop</button>
+        </div>
+    </div>
+    <script>
+        // JavaScript for accessing the camera and handling emotions
+        const video = document.getElementById('video');
+        const emotionDiv = document.getElementById('emotion');
+        const transcriptDiv = document.getElementById('transcript');
+        const llmResponseDiv = document.getElementById('llm-response');
+        let startTime;
+        let sessionId = null;
+
+        function generateSessionId() {
+            return 'session-' + Math.random().toString(36).substr(2, 9);
+        }
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        const csrftoken = getCookie('csrftoken');
+
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                video.srcObject = stream;
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+
+                video.addEventListener('play', () => {
+                    startTime = new Date().getTime(); // Initialize startTime
+                    console.log('Video started playing, startTime:', startTime);
+                    const updateEmotion = () => {
+                        if (video.paused || video.ended) {
+                            return;
+                        }
+                        const currentTime = new Date().getTime() - startTime;
+                        console.log('Current time:', currentTime);
+                        canvas.width = video.videoWidth;
+                        canvas.height = video.videoHeight;
+                        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                        canvas.toBlob(blob => {
+                            const formData = new FormData();
+                            formData.append('frame', blob);
+                            formData.append('timestamp', currentTime);
+                            formData.append('session_id', sessionId);
+
+                            console.log('Sending frame to API with timestamp:', currentTime);
+
+                            fetch('/api/emotion-detection/', {
+                                method: 'POST',
+                                headers: {
+                                    'X-CSRFToken': csrftoken
+                                },
+                                body: formData
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.emotion) {
+                                    emotionDiv.innerText = 'Emotion: ' + data.emotion;
+                                    console.log('Emotion detected:', data.emotion);
+                                } else if (data.error) {
+                                    console.error('Error:', data.error);
+                                }
+                            })
+                            .catch(error => console.error('Fetch error:', error));
+                        }, 'image/jpeg');
+                        setTimeout(updateEmotion, 1000); // Update emotion every second
+                    };
+                    updateEmotion();
+                });
+            })
+            .catch(error => {
+                console.error('Error accessing the camera', error);
+            });
+
+        // JavaScript for audio recording and analysis
+        const recordButton = document.getElementById('recordButton');
+        const stopButton = document.getElementById('stopButton');
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        let mediaRecorder;
+        let audioChunks = [];
+
+        recordButton.addEventListener('click', () => {
+            startTime = new Date().getTime();
+            console.log('Recording started, startTime:', startTime);
+            sessionId = generateSessionId();
+            audioChunks = []; // Reset the audio chunks
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(stream => {
+                    mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+                    mediaRecorder.start();
+                    mediaRecorder.ondataavailable = event => {
+                        const currentTime = new Date().getTime() - startTime;
+                        console.log('Audio data available, currentTime:', currentTime);
+                        audioChunks.push({ chunk: event.data, timestamp: currentTime });
+                    };
+                    mediaRecorder.onstop = () => {
+                        const audioBlob = new Blob(audioChunks.map(a => a.chunk), { type: 'audio/webm' });
+                        const formData = new FormData();
+                        formData.append('audio', audioBlob);
+                        formData.append('timestamps', JSON.stringify(audioChunks.map(a => a.timestamp)));
+                        formData.append('session_id', sessionId);
+
+                        console.log('Sending audio to API');
+
+                        fetch('/api/speech-analysis/', {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRFToken': csrftoken
+                            },
+                            body: formData
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.transcription) {
+                                console.log('Transcription:', data.transcription);
+                                updateTranscript(data.transcription);
+                            }
+                            if (data.llm_response) {
+                                console.log('LLM Response:', data.llm_response);
+                                updateLLMResponse(data.llm_response);
+                            } else if (data.error) {
+                                console.error('Error:', data.error);
+                            }
+                        })
+                        .catch(error => console.error('Fetch error:', error));
+
+                    };
+                    recordButton.disabled = true;
+                    stopButton.disabled = false;
+                })
+                .catch(error => console.error('Error accessing the microphone', error));
+        });
+
+        stopButton.addEventListener('click', () => {
+            mediaRecorder.stop();
+            recordButton.disabled = false;
+            stopButton.disabled = true;
+        });
+
+        // JavaScript for updating the transcript
+        function updateTranscript(text) {
+            transcriptDiv.innerText = 'Transcript:\n' + text;
+        }
+
+        // JavaScript for updating the LLM response
+        function updateLLMResponse(text) {
+            llmResponseDiv.innerText = 'Jessie: ' + text;
+        }
+
+    </script>
+</body>
+</html>
