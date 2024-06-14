@@ -17,6 +17,7 @@ class Transcription(models.Model):
     timestamp = models.FloatField()
 
 class TherapistResponse(models.Model):
-    session_id = models.CharField(max_length=255)
+    session_id = models.CharField(max_length=100)
     text = models.TextField()
+    audio = models.FileField(upload_to='therapist_responses/', null=True, blank=True)
     timestamp = models.DateTimeField(auto_now_add=True)

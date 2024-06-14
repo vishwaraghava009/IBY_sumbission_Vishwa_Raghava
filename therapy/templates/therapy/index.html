@@ -71,11 +71,12 @@
             <button type="submit">Upload</button>
         </form>
         {% if uploaded_file_url %}
-            <div class="uploaded-image">
+            <div class="uploaded-image" style="text-align: center;">
                 <h2>Uploaded Therapist Image</h2>
-                <img src="{{ uploaded_file_url }}" alt="Therapist Image" style="max-width: 100%; height: auto; border-radius: 10px;">
+                <img src="{{ uploaded_file_url }}" alt="Therapist Image" style="max-width: 50%; height: auto; border-radius: 10px;">
             </div>
         {% endif %}
+
         <div class="video-container">
             <h2>Emotion Detection</h2>
             <video id="video" autoplay></video>

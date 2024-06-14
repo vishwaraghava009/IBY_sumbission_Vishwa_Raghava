@@ -22,6 +22,8 @@ load_dotenv()
 GROQ_API_KEY = os.getenv('GROQ_API_KEY')
 client = Groq(api_key=GROQ_API_KEY)
 
+from therapy.StyleTTS2.styletts2_setup import inference, save_audio
+
 class EmotionDetectionView(APIView):
     def post(self, request, *args, **kwargs):
         if 'frame' not in request.FILES or 'timestamp' not in request.POST or 'session_id' not in request.POST:
@@ -189,31 +191,31 @@ class SpeechAnalysisView(APIView):
             user_transcription = ' '.join([seg['text'] for seg in segmented_transcriptions])
             prompt = f"""Imagine you are playing the "Brain of a therapist" role. You'll be given what your patient is speaking in this conversation, along with the emotion and tone at the beginning of each sentence he speaks in a single reply to you. For example:
 
-User: {user_transcription}
+            User: {user_transcription}
 
-For example:
-{{sad, sad}} I'm feeling a bit down today. {{happy, surprise}} But, I met my old friend and spent time with him. {{happy, sarcastic}} We thought of playing cricket.
+            For example:
+            {{sad, sad}} I'm feeling a bit down today. {{happy, surprise}} But, I met my old friend and spent time with him. {{happy, sarcastic}} We thought of playing cricket.
 
-Here, the first term inside the brackets is regarding the facial emotion of the patient while speaking the sentence following the brackets, and similarly, the second term inside the brackets is regarding the tone of his speech while uttering the sentence following the brackets.
+            Here, the first term inside the brackets is regarding the facial emotion of the patient while speaking the sentence following the brackets, and similarly, the second term inside the brackets is regarding the tone of his speech while uttering the sentence following the brackets.
 
-Available emotions are:
-[Happy, Sad, Anger, Surprise, Fear, Disgust, Contempt]
+            Available emotions are:
+            [Happy, Sad, Anger, Surprise, Fear, Disgust, Contempt]
 
-Available tones are:
-[Happy, Sad, Anger, Surprise, Fear, Disgust, Sarcastic]
+            Available tones are:
+            [Happy, Sad, Anger, Surprise, Fear, Disgust, Sarcastic]
 
-You have to analyse the transcription of the sentence he speaks, taking the emotion and tone as the additional attributes to extract the actual meaning of the transcription or how the patient feels while saying a particular sentence.
+            You have to analyse the transcription of the sentence he speaks, taking the emotion and tone as the additional attributes to extract the actual meaning of the transcription or how the patient feels while saying a particular sentence.
 
-You have to write your analysis of the patient's reply, and following it, you also have to craft what the therapist has to reply in 30 words. The reply has to be crafted based on the analysis. Also, the reply has to be in a way that it sounds realistic when spoken, that is, adding some reactional words or terms that have no meaning but make the conversation reactional and realistic, for example, "Aw...", "Umm...", "a term that can introduce pausing as if the therapist thinking a second before speaking just like a human does", etc.
+            You have to write your analysis of the patient's reply, and following it, you also have to craft what the therapist has to reply in 30 words. The reply has to be crafted based on the analysis. Also, the reply has to be in a way that it sounds realistic when spoken, that is, adding some reactional words or terms that have no meaning but make the conversation reactional and realistic, for example, "Aw...", "Umm...", "a term that can introduce pausing as if the therapist thinking a second before speaking just like a human does", etc.
 
-The output structure should be as follows:
-Analysis: (analysis of the user's reply)
-Therapist: (therapist reply)
+            The output structure should be as follows:
+            Analysis: (analysis of the user's reply)
+            Therapist: (therapist reply)
 
-Okay, now, start the conversation by observing the reply from him below for a greeting, and you'll get replies from him to perform the entire process described above. Do not answer anything else in the output apart from the above structure.
+            Okay, now, start the conversation by observing the reply from him below for a greeting, and you'll get replies from him to perform the entire process described above. Do not answer anything else in the output apart from the above structure.
 
-Therapist: Hello! What do you want to express today? I am here to listen and not judge you in any way.
-Patient: {user_transcription}
+            Therapist: Hello! What do you want to express today? I am here to listen and not judge you in any way.
+            Patient: {user_transcription}
             """
 
             # Call the LLM
@@ -238,14 +240,22 @@ Patient: {user_transcription}
             # Save the therapist's reply to the database
             TherapistResponse.objects.create(session_id=session_id, text=therapist_reply)
 
-            return Response({'transcription': transcription, 'tone_emotions': tone_emotions, 'llm_response': therapist_reply})
+            # Generate speech from the therapist's reply
+            noise = torch.randn(1,1,256).to(device)
+            wav = inference(therapist_reply, noise, diffusion_steps=10, embedding_scale=1)
+            audio_filename = f"therapy/static/audio/{session_id}_response.wav"
+            save_audio(wav, audio_filename)
+            print(f"Audio saved to {audio_filename}")
+
+            return Response({'transcription': transcription, 'tone_emotions': tone_emotions, 'llm_response': therapist_reply, 'audio_url': audio_filename})
         except subprocess.CalledProcessError as e:
             print(f"Error converting audio file: {e}")
             return Response({'error': 'Error converting audio file'}, status=400)
         except Exception as e:
             print(f"Error: {str(e)}")
             return Response({'error': str(e)}, status=400)
-
+        
+        
 def recognize_speech_from_file(file_path):
     recognizer = sr.Recognizer()
     with sr.AudioFile(file_path) as source:
