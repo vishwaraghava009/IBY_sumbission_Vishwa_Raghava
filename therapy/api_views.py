@@ -20,7 +20,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
-GROQ_API_KEY = "Insert"
+GROQ_API_KEY = "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"
 client = Groq(api_key=GROQ_API_KEY)
 
 class EmotionDetectionView(APIView):
