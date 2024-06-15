@@ -2,7 +2,7 @@ import cv2
 from deepface import DeepFace
 
 def detect_emotions():
-    cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)  # Try specifying cv2.CAP_DSHOW as the backend
+    cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)  
     if not cap.isOpened():
         print("Error: Could not open video capture device.")
         return

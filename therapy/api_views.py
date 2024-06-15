@@ -1,7 +1,6 @@
 import os
 import json
 import subprocess
-import pyaudio
 import torch
 import time
 import wave
@@ -20,10 +19,9 @@ from groq import Groq
 from dotenv import load_dotenv
 
 load_dotenv()
-
-GROQ_API_KEY = os.getenv('GROQ_API_KEY')
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+GROQ_API_KEY = "Insert"
 client = Groq(api_key=GROQ_API_KEY)
-
 
 class EmotionDetectionView(APIView):
     def post(self, request, *args, **kwargs):
@@ -238,29 +236,31 @@ class SpeechAnalysisView(APIView):
             therapist_reply = llm_output.split("Therapist: ")[-1].strip()
             print("Therapist Reply:", therapist_reply)
 
-            # Save the therapist's reply to the database
-            TherapistResponse.objects.create(session_id=session_id, text=therapist_reply)
+            # Save the LLM output to a file
+            llm_output_path = os.path.abspath(f"media/{session_id}_llm_output.txt")
+            with open(llm_output_path, "w") as f:
+                f.write(therapist_reply)
 
-            # Generate speech from the therapist's reply
-            noise = torch.randn(1, 1, 256).to(device)
-            start = time.time()
-            wav = inference(therapist_reply, noise, diffusion_steps=10, embedding_scale=1)
-            rtf = (time.time() - start) / (len(wav) / 24000)
-            print(f"RTF = {rtf:5f}")
-            
-            audio_filename = f"therapy/static/audio/{session_id}_response.wav"
-            save_audio(wav, audio_filename)
+            # Call the inference script
+            audio_filename = os.path.abspath(f"media/audio/{session_id}_response.wav")
+            inference_command = [
+                'python',
+                os.path.join(os.path.dirname(__file__), '..', 'StyleTTS2', 'run_inference.py'),
+                llm_output_path,
+                audio_filename
+            ]
+            subprocess.run(inference_command, check=True)
             print(f"Audio saved to {audio_filename}")
 
             return Response({'transcription': transcription, 'tone_emotions': tone_emotions, 'llm_response': therapist_reply, 'audio_url': audio_filename})
         except subprocess.CalledProcessError as e:
-            print(f"Error converting audio file: {e}")
-            return Response({'error': 'Error converting audio file'}, status=400)
+            print(f"Error running inference script: {e}")
+            return Response({'error': 'Error running inference script'}, status=400)
         except Exception as e:
             print(f"Error: {str(e)}")
             return Response({'error': str(e)}, status=400)
-        
-        
+
+
 def recognize_speech_from_file(file_path):
     recognizer = sr.Recognizer()
     with sr.AudioFile(file_path) as source:

@@ -18,6 +18,7 @@ from django.contrib import admin
 from django.urls import path
 from therapy import views
 from django.conf import settings
+from therapy.views import list_images
 from therapy.api_views import EmotionDetectionView, SpeechAnalysisView
 from django.conf.urls.static import static
 
@@ -25,6 +26,7 @@ from django.conf.urls.static import static
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', views.index, name='index'),
+    path('api/list-images/', list_images, name='list-images'),
     path('api/emotion-detection/', EmotionDetectionView.as_view(), name='emotion-detection'),
     path('api/speech-analysis/', SpeechAnalysisView.as_view(), name='speech-analysis'),
 
