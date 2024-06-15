@@ -2,6 +2,8 @@ import os
 import json
 import subprocess
 import pyaudio
+import torch
+import time
 import wave
 import numpy as np
 import cv2
@@ -22,7 +24,6 @@ load_dotenv()
 GROQ_API_KEY = os.getenv('GROQ_API_KEY')
 client = Groq(api_key=GROQ_API_KEY)
 
-from therapy.StyleTTS2.styletts2_setup import inference, save_audio
 
 class EmotionDetectionView(APIView):
     def post(self, request, *args, **kwargs):
@@ -241,8 +242,12 @@ class SpeechAnalysisView(APIView):
             TherapistResponse.objects.create(session_id=session_id, text=therapist_reply)
 
             # Generate speech from the therapist's reply
-            noise = torch.randn(1,1,256).to(device)
+            noise = torch.randn(1, 1, 256).to(device)
+            start = time.time()
             wav = inference(therapist_reply, noise, diffusion_steps=10, embedding_scale=1)
+            rtf = (time.time() - start) / (len(wav) / 24000)
+            print(f"RTF = {rtf:5f}")
+            
             audio_filename = f"therapy/static/audio/{session_id}_response.wav"
             save_audio(wav, audio_filename)
             print(f"Audio saved to {audio_filename}")
