@@ -17,10 +17,14 @@ from .models import EmotionAnalysis, ToneAnalysis, Transcription, TherapistRespo
 from collections import Counter
 from groq import Groq
 from dotenv import load_dotenv
+import yaml
+import logging
+import shutil
+
 
 load_dotenv()
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
-GROQ_API_KEY = "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"
+GROQ_API_KEY = "*z"
 client = Groq(api_key=GROQ_API_KEY)
 
 class EmotionDetectionView(APIView):
@@ -252,7 +256,16 @@ class SpeechAnalysisView(APIView):
             subprocess.run(inference_command, check=True)
             print(f"Audio saved to {audio_filename}")
 
-            return Response({'transcription': transcription, 'tone_emotions': tone_emotions, 'llm_response': therapist_reply, 'audio_url': audio_filename})
+            # Call the MuseTalk inference
+            handle_new_audio_file(audio_filename, session_id)
+            
+            return Response({
+                'transcription': transcription,
+                'tone_emotions': tone_emotions,
+                'llm_response': therapist_reply,
+                'audio_url': audio_filename,
+                'video_url': f'/media/output_video/avatars/avator1/vid_output/{session_id}_audio_0.mp4'
+            })
         except subprocess.CalledProcessError as e:
             print(f"Error running inference script: {e}")
             return Response({'error': 'Error running inference script'}, status=400)
@@ -260,6 +273,62 @@ class SpeechAnalysisView(APIView):
             print(f"Error: {str(e)}")
             return Response({'error': str(e)}, status=400)
 
+def handle_new_audio_file(audio_file_path, session_id):
+    logging.info(f"Handling new audio file: {audio_file_path}")
+    # Path to the motion transferred video directory
+    motion_video_dir = os.path.abspath("media/motion_video/vox/")
+    output_video_dir = os.path.abspath(f"media/output_video/avatars/avator1/vid_output/")
+    
+    # Wait until the motion transferred video is available
+    while True:
+        motion_videos = [f for f in os.listdir(motion_video_dir) if f.endswith('.mp4')]
+        if motion_videos:
+            motion_video_path = os.path.join(motion_video_dir, motion_videos[0])
+            logging.info(f"Motion video found: {motion_video_path}")
+            break
+        logging.info("Waiting for motion video...")
+        time.sleep(5)
+    
+    # Check if the avatar directory exists
+    avatar_dir = os.path.abspath("MuseTalk/results/avatars/avator1/")
+    preparation_needed = not os.path.exists(avatar_dir)
+    
+    # Update the realtime.yaml configuration file
+    update_realtime_yaml(motion_video_path, audio_file_path, preparation_needed)
+    
+    # Run the MuseTalk inference script
+    run_musetalk_inference()
+
+    # Copy the generated video to the media directory
+    src_video_path = os.path.abspath("MuseTalk/results/avatars/avator1/vid_output/audio_0.mp4")
+    dst_video_path = os.path.join(output_video_dir, f"{session_id}_audio_0.mp4")
+    os.makedirs(output_video_dir, exist_ok=True)
+    shutil.copy(src_video_path, dst_video_path)
+    logging.info(f"Copied generated video to: {dst_video_path}")
+
+def update_realtime_yaml(video_path, audio_path, preparation):
+    config_path = os.path.abspath("MuseTalk/configs/inference/realtime.yaml")
+    with open(config_path, 'r') as file:
+        config = yaml.safe_load(file)
+
+    config['avator_1']['preparation'] = preparation
+    config['avator_1']['video_path'] = video_path
+
+    # Ensure only audio_0 is present in audio_clips
+    config['avator_1']['audio_clips'] = {'audio_0': audio_path}
+
+    with open(config_path, 'w') as file:
+        yaml.safe_dump(config, file)
+    
+    logging.info(f"Updated realtime.yaml with video_path: {video_path} and audio_path: {audio_path}")
+
+def run_musetalk_inference():
+    command = [
+        'python', '-m', 'scripts.realtime_inference',
+        '--inference_config', 'configs/inference/realtime.yaml'
+    ]
+    logging.info(f"Running MuseTalk inference: {command}")
+    subprocess.run(command, cwd='MuseTalk')
 
 def recognize_speech_from_file(file_path):
     recognizer = sr.Recognizer()

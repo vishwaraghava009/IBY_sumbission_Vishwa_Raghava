@@ -10,9 +10,17 @@ def list_images():
     images = [f for f in os.listdir(pics_dir) if os.path.isfile(os.path.join(pics_dir, f))]
     return images
 
+
+def check_video_existence(request):
+    lip_sync_video_path = os.path.join(settings.MUSETALK_ROOT, 'results', 'avatars', 'avatar1', 'vid_output', 'audio_0.mp4')
+    video_exists = os.path.exists(lip_sync_video_path)
+    return JsonResponse({'exists': video_exists})
+
+
 @csrf_exempt
 def index(request):
     images = list_images()
+    lip_sync_video_url = None
     if request.method == 'POST':
         selected_image = request.POST.get('selected_image')
         if selected_image:
@@ -41,7 +49,16 @@ def index(request):
                 print(f"Error running motion transfer: {e}")
                 return HttpResponse(f"Error running motion transfer: {e}", status=500)
 
-            return redirect('index')
+            # Check if the lip sync video exists
+            lip_sync_video_path = os.path.join(settings.MUSETALK_ROOT, 'results', 'avatars', 'avatar1', 'vid_output', 'audio_0.mp4')
+            if os.path.exists(lip_sync_video_path):
+                lip_sync_video_url = os.path.join(settings.MUSETALK_URL, 'results', 'avatars', 'avatar1', 'vid_output', 'audio_0.mp4')
+
+            return render(request, 'therapy/index.html', {
+                'uploaded_file_url': uploaded_file_url,
+                'images': images,
+                'lip_sync_video_url': lip_sync_video_url
+            })
 
     return render(request, 'therapy/index.html', {'images': images})
 

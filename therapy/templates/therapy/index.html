@@ -30,10 +30,12 @@
             margin-top: 20px;
         }
         video {
-            width: 100%;
-            height: auto;
+            width: 320px;
+            height: 240px;
             border: 1px solid #ddd;
             border-radius: 10px;
+            display: block;
+            margin: 20px auto;
         }
         .transcript {
             background: #f9f9f9;
@@ -67,7 +69,7 @@
         <p>Select an image of your therapist below.</p>
         <form method="post" enctype="multipart/form-data">
             {% csrf_token %}
-            <select name="selected_image">
+            <select name="selected_image" id="therapist_image_select">
                 {% for image in images %}
                     <option value="{{ image }}">{{ image }}</option>
                 {% endfor %}
@@ -82,11 +84,13 @@
             </div>
         {% endif %}
 
-        {% if motion_transfer_complete %}
-            <div class="notification">
-                Motion transfer complete. Video saved.
-            </div>
-        {% endif %}
+        <div id="lip-sync-video-container" class="lip-sync-video" style="text-align: center; display: none;">
+            <h2>Lip Sync Video</h2>
+            <video id="lip-sync-video" controls autoplay>
+                <source id="lip-sync-video-source" src="" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+        </div>
 
         <div class="video-container">
             <h2>Emotion Detection</h2>
@@ -103,6 +107,29 @@
     </div>
     <script>
         document.addEventListener("DOMContentLoaded", function() {
+            const lipSyncVideoContainer = document.getElementById('lip-sync-video-container');
+            const lipSyncVideo = document.getElementById('lip-sync-video');
+            const lipSyncVideoSource = document.getElementById('lip-sync-video-source');
+
+            const lipSyncVideoUrl = "{{ lip_sync_video_url }}";
+
+            function checkVideoExistence() {
+                fetch('/api/check-video-existence/')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.exists) {
+                            lipSyncVideoSource.src = lipSyncVideoUrl;
+                            lipSyncVideo.load();
+                            lipSyncVideoContainer.style.display = 'block';
+                        } else {
+                            lipSyncVideoContainer.style.display = 'none';
+                        }
+                    })
+                    .catch(error => console.error('Error checking video existence:', error));
+            }
+
+            setInterval(checkVideoExistence, 5000); // Check every 5 seconds
+
             fetch('/api/list-images/')
                 .then(response => response.json())
                 .then(data => {
@@ -243,6 +270,11 @@
                             if (data.llm_response) {
                                 console.log('LLM Response:', data.llm_response);
                                 updateLLMResponse(data.llm_response);
+                            }
+                            if (data.video_url) {
+                                lipSyncVideoSource.src = data.video_url;
+                                lipSyncVideo.load();
+                                lipSyncVideoContainer.style.display = 'block';
                             } else if (data.error) {
                                 console.error('Error:', data.error);
                             }
