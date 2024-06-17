@@ -1,9 +1,9 @@
-Go trhough the python notebook or install the same libraries on your local machine as well by cloning the repo ad following the mentioned changes in colab notebook. 
-You may ahavet to create a new groq_api_key if mine doen't work.
-You may also have to create a ngok auth number as well f mine doen't work and this specifically if you are using colab for execution.
+- Go trhough the python notebook or install the same libraries on your local machine as well by cloning the repo ad following the mentioned changes in colab notebook. 
+- You may have to create a new groq_api_key if mine doesn't work.
+You may also have to create a ngrok auth number as well if mine doesn't work and this is specific only if you are using colab for execution.
 Reccomended to use L4 GPU or advanced.
-Therading has been removed as it got compilacted on colab.
-Currently, no enhancer has been incluyded in the pipline but we can add one after motion transfer using LIA (in views.py file).
+Threading has been removed as it got compilacted on colab.
+Currently, no enhancer has been included in the pipline but we can add one like Real_ESRGAN after motion transfer using LIA (in views.py file).
 
 
 For the model checkpoints:
