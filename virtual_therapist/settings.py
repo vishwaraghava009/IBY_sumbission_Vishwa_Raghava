@@ -26,8 +26,8 @@ SECRET_KEY = "django-insecure-5i08*y*1s5e)eom*8+iy4^ly9s5h%9zvl*=o5n596acb$14p_8
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '5491-34-147-58-120.ngrok-free.app']
-CSRF_TRUSTED_ORIGINS = ['https://5491-34-147-58-120.ngrok-free.app']
+ALLOWED_HOSTS = ['*']
+CSRF_TRUSTED_ORIGINS = ['*']
 
 # Application definition
 
@@ -129,6 +129,9 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+VIDEO_URL = '/videos/'
+VIDEO_ROOT = os.path.join(BASE_DIR, 'MuseTalk/results/avatars/avator_1/vid_output')
 
 MUSETALK_URL = '/MuseTalk/'
 MUSETALK_ROOT = os.path.join(BASE_DIR, 'MuseTalk')

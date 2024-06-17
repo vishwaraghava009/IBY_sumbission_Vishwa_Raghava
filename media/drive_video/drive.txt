@@ -1,0 +1,4 @@
+#you can upload the driving videos you wish.
+#But remember tgat driving videos should have dimensions of a square
+#preferbly 512x512
+#Also, try cropping them to their face only.

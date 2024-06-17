@@ -1,0 +1,5 @@
+#upload the face images of therapist.
+#Instructions:
+# 1. Square dimensions
+# 2. Cropped to have the face only.
+# 3. Would work better if the body entirely faces towards the camera

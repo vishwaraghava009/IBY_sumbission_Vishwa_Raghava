@@ -25,7 +25,7 @@ from django.conf import settings
 
 load_dotenv()
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
-GROQ_API_KEY = "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"
+GROQ_API_KEY = "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"  #my groq_api_key replace it with yours if this doen't work(as itvgets exposed on git now)
 client = Groq(api_key=GROQ_API_KEY)
 
 
@@ -62,14 +62,14 @@ class EmotionDetectionView(APIView):
             if analysis and isinstance(analysis, list) and 'dominant_emotion' in analysis[0]:
                 dominant_emotion = analysis[0]['dominant_emotion']
                 confidence = analysis[0]['emotion'][dominant_emotion]
-                # Save to database
+                #save to database
                 EmotionAnalysis.objects.create(session_id=session_id, timestamp=timestamp, emotion=dominant_emotion, confidence=confidence)
             else:
                 dominant_emotion = 'No dominant emotion detected'
             
             return Response({'emotion': dominant_emotion})
         except Exception as e:
-            print(f"Error: {str(e)}")  # Print the error in the server console
+            print(f"Error: {str(e)}")  
             return Response({'error': str(e)}, status=400)
 
 def segment_transcription(transcription, tone_emotions, facial_emotions, window_size=10000):
@@ -85,7 +85,7 @@ def segment_transcription(transcription, tone_emotions, facial_emotions, window_
     print("Facial emotions:", facial_emotions)
 
     for i, word in enumerate(words):
-        word_timestamp = i * (1000 // len(words))  # Approximate timestamp for each word
+        word_timestamp = i * (1000 // len(words))  
         print(f"Word: {word}, Word Timestamp: {word_timestamp}")
 
         for timestamp, emotion in tone_emotions:
@@ -97,7 +97,6 @@ def segment_transcription(transcription, tone_emotions, facial_emotions, window_
                 facial_emotion_counts[record['emotion']] += 1
 
         if i > 0 and (i % window_size == 0):
-            # Determine the most common emotions
             most_common_facial_emotion = facial_emotion_counts.most_common(1)[0][0] if facial_emotion_counts else 'neutral'
             most_common_tone_emotion = tone_emotion_counts.most_common(1)[0][0] if tone_emotion_counts else 'neutral'
             
@@ -115,7 +114,6 @@ def segment_transcription(transcription, tone_emotions, facial_emotions, window_
         current_segment.append(word)
 
     if current_segment:
-        # Determine the most common emotions for the last segment
         most_common_facial_emotion = facial_emotion_counts.most_common(1)[0][0] if facial_emotion_counts else 'neutral'
         most_common_tone_emotion = tone_emotion_counts.most_common(1)[0][0] if tone_emotion_counts else 'neutral'
         
@@ -146,17 +144,15 @@ class SpeechAnalysisView(APIView):
                 f.write(audio_file.read())
                 print("Saved audio file as temp_audio.webm")
 
-            # Convert WebM to WAV using ffmpeg
             ffmpeg_command = [
                 'ffmpeg',
-                '-y',  # Add this option to overwrite files
+                '-y',  
                 '-i', f'temp_audio_{session_id}.webm',
                 f'temp_audio_{session_id}.wav'
             ]
             subprocess.run(ffmpeg_command, check=True)
             print(f"Converted audio file to temp_audio_{session_id}.wav")
 
-            # Verify the audio file format
             try:
                 wf = wave.open(f"temp_audio_{session_id}.wav", 'rb')
                 print(f"Audio file format: {wf.getnchannels()} channels, {wf.getsampwidth()} bytes per sample, {wf.getframerate()} Hz")
@@ -171,14 +167,13 @@ class SpeechAnalysisView(APIView):
             tone_features = analyze_audio_tone(f"temp_audio_{session_id}.wav")
             print("Tone features:", tone_features)
 
-            # Ensure tone_features and timestamps are of the same length
             if len(tone_features) != len(timestamps):
                 print("Length mismatch between tone features and timestamps")
                 min_length = min(len(tone_features), len(timestamps))
                 tone_features = tone_features[:min_length]
                 timestamps = timestamps[:min_length]
 
-            # Save tone analysis with timestamps
+            #save tone analysis with timestamps
             tone_emotions = []
             for i, timestamp in enumerate(timestamps):
                 emotion = map_tone_features_to_emotion(tone_features[i])
@@ -187,11 +182,11 @@ class SpeechAnalysisView(APIView):
 
             print("Tone emotions:", tone_emotions)
 
-            # Get facial emotions
+            #facial emotions
             facial_emotions = list(EmotionAnalysis.objects.filter(session_id=session_id).values('timestamp', 'emotion'))
             print("Facial emotions:", facial_emotions)
 
-            # Segment transcription based on fixed window size
+            #stucture transcription 
             segmented_transcriptions = segment_transcription(transcription, tone_emotions, facial_emotions, window_size=10000)
             print("Segmented transcriptions:", segmented_transcriptions)
             
@@ -202,7 +197,7 @@ class SpeechAnalysisView(APIView):
                     timestamp=segment['timestamp']
                 )
 
-            # Generate prompt for LLM
+            #prompt for LLM
             user_transcription = ' '.join([seg['text'] for seg in segmented_transcriptions])
             prompt = f"""Imagine you are playing the "Brain of a therapist" role. You'll be given what your patient is speaking in this conversation, along with the emotion and tone at the beginning of each sentence he speaks in a single reply to you. For example:
 
@@ -221,7 +216,7 @@ class SpeechAnalysisView(APIView):
 
             You have to analyse the transcription of the sentence he speaks, taking the emotion and tone as the additional attributes to extract the actual meaning of the transcription or how the patient feels while saying a particular sentence.
 
-            You have to write your analysis of the patient's reply, and following it, you also have to craft what the therapist has to reply in 30 words. The reply has to be crafted based on the analysis. Also, the reply has to be in a way that it sounds realistic when spoken, that is, adding some reactional words or terms that have no meaning but make the conversation reactional and realistic, for example, "Aw...", "Umm...", "a term that can introduce pausing as if the therapist thinking a second before speaking just like a human does", etc.
+            You have to write your analysis of the patient's reply, and following it, you also have to craft what the therapist has to reply in 30 words. The reply has to be crafted based on the analysis. Also, the reply has to be in a way that it sounds realistic when spoken, that is, adding some reactional words or terms that have no meaning but make the conversation reactional and realistic, for example, "Aw...", "Umm...", "a term that can introduce pausing as if the therapist thinking a second before speaking just like a human does but donot include instructions like *smiles*, *pauses* etc. We cannot get them spoken by a TTS model, etc.
 
             The output structure should be as follows:
             Analysis: (analysis of the user's reply)
@@ -233,7 +228,7 @@ class SpeechAnalysisView(APIView):
             Patient: {user_transcription}
             """
 
-            # Call the LLM
+            #call the LLM
             response = client.chat.completions.create(
                 messages=[
                     {"role": "system", "content": "you are a helpful assistant."},
@@ -248,16 +243,16 @@ class SpeechAnalysisView(APIView):
             llm_output = response.choices[0].message.content
             print("LLM Response:", llm_output)
 
-            # Extract the therapist's reply
+            #extract the therapist's reply
             therapist_reply = llm_output.split("Therapist: ")[-1].strip()
             print("Therapist Reply:", therapist_reply)
 
-            # Save the LLM output to a file
+            #save the LLM output to a file
             llm_output_path = os.path.abspath(f"media/{session_id}_llm_output.txt")
             with open(llm_output_path, "w") as f:
                 f.write(therapist_reply)
 
-            # Call the inference script
+            #call the inference script
             audio_filename = os.path.abspath(f"media/audio/{session_id}_response.wav")
             inference_command = [
                 'python',
@@ -268,7 +263,7 @@ class SpeechAnalysisView(APIView):
             subprocess.run(inference_command, check=True)
             print(f"Audio saved to {audio_filename}")
 
-            # Call the MuseTalk inference
+            #call the MuseTalk inference
             handle_new_audio_file(audio_filename, session_id)
             
             return Response({
@@ -287,11 +282,9 @@ class SpeechAnalysisView(APIView):
 
 def handle_new_audio_file(audio_file_path, session_id):
     logging.info(f"Handling new audio file: {audio_file_path}")
-    # Path to the motion transferred video directory
     motion_video_dir = os.path.abspath("media/motion_video/vox/")
     output_video_dir = os.path.abspath(f"media/output_video/")
     
-    # Wait until the motion transferred video is available
     while True:
         motion_videos = [f for f in os.listdir(motion_video_dir) if f.endswith('.mp4')]
         if motion_videos:
@@ -301,31 +294,10 @@ def handle_new_audio_file(audio_file_path, session_id):
         logging.info("Waiting for motion video...")
         time.sleep(5)
     
-    # Check if the avatar directory exists
     avatar_dir = os.path.abspath("MuseTalk/results/avatars/avator_1/")
     preparation_needed = not os.path.exists(avatar_dir)
     
-    # Update the realtime.yaml configuration file
-    update_realtime_yaml(motion_video_path, audio_file_path, preparation_needed)
-    
-    # Run the MuseTalk inference script
     run_musetalk_inference()
-
-def update_realtime_yaml(video_path, audio_path, preparation):
-    config_path = os.path.abspath("MuseTalk/configs/inference/realtime.yaml")
-    with open(config_path, 'r') as file:
-        config = yaml.safe_load(file)
-
-    config['avator_1']['preparation'] = preparation
-    config['avator_1']['video_path'] = video_path
-
-    # Ensure only audio_0 is present in audio_clips
-    config['avator_1']['audio_clips'] = {'audio_0': audio_path}
-
-    with open(config_path, 'w') as file:
-        yaml.safe_dump(config, file)
-    
-    logging.info(f"Updated realtime.yaml with video_path: {video_path} and audio_path: {audio_path}")
 
 def run_musetalk_inference():
     command = [
@@ -349,13 +321,12 @@ def recognize_speech_from_file(file_path):
 
 def analyze_audio_tone(file_path):
     [Fs, x] = audioBasicIO.read_audio_file(file_path)
-    window_size = 0.05  # 50 ms
-    step_size = 0.025  # 25 ms
+    window_size = 0.05  
+    step_size = 0.025  
     F, f_names = ShortTermFeatures.feature_extraction(x, Fs, window_size * Fs, step_size * Fs)
-    return F.T  # Transpose to have each row as a feature vector for a time frame
+    return F.T  
 
 def map_tone_features_to_emotion(tone_features):
-    # Example rule-based mapping function
     mean_val = np.mean(tone_features)
     std_val = np.std(tone_features)
 

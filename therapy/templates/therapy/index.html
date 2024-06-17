@@ -77,17 +77,10 @@
             <button type="submit">Submit</button>
         </form>
 
-        {% if uploaded_file_url %}
-            <div class="uploaded-image" style="text-align: center;">
-                <h2>Selected Therapist Image</h2>
-                <img src="{{ uploaded_file_url }}" alt="Therapist Image" style="max-width: 50%; height: auto; border-radius: 10px;">
-            </div>
-        {% endif %}
-
-        <div id="lip-sync-video-container" class="lip-sync-video" style="text-align: center;">
+        <div id="lip-sync-video-container" class="lip-sync-video" style="text-align: center; display: none;">
             <h2>Lip Sync Video</h2>
             <video id="lip-sync-video" controls autoplay>
-                <source id="lip-sync-video-source" src="/MuseTalk/results/avatars/avator1/vid_output/audio_0.mp4" type="video/mp4">
+                <source id="lip-sync-video-source" src="" type="video/mp4">
                 Your browser does not support the video tag.
             </video>
         </div>
@@ -111,12 +104,17 @@
             const emotionDiv = document.getElementById('emotion');
             const transcriptDiv = document.getElementById('transcript');
             const llmResponseDiv = document.getElementById('llm-response');
+            const lipSyncVideoContainer = document.getElementById('lip-sync-video-container');
+            const lipSyncVideoSource = document.getElementById('lip-sync-video-source');
+            const lipSyncVideo = document.getElementById('lip-sync-video');
             let startTime;
             let sessionId = null;
+            let checkVideoInterval;
 
             function generateSessionId() {
                 return 'session-' + Math.random().toString(36).substr(2, 9);
             }
+
             function getCookie(name) {
                 let cookieValue = null;
                 if (document.cookie && document.cookie !== '') {
@@ -233,6 +231,11 @@
                                 if (data.llm_response) {
                                     console.log('LLM Response:', data.llm_response);
                                     updateLLMResponse(data.llm_response);
+                                    // Start checking for video existence after receiving LLM response
+                                    if (checkVideoInterval) {
+                                        clearInterval(checkVideoInterval);
+                                    }
+                                    checkVideoInterval = setInterval(() => checkVideoExistence(sessionId), 5000);
                                 } else if (data.error) {
                                     console.error('Error:', data.error);
                                 }
@@ -262,7 +265,24 @@
                 llmResponseDiv.innerText = 'Jessie: ' + text;
             }
 
+            function checkVideoExistence(sessionId) {
+                const videoPath = '/videos/audio_0.mp4'; 
+                const cacheBustedUrl = `${videoPath}?t=${new Date().getTime()}`;
+                fetch(videoPath, { method: 'HEAD' })
+                    .then(response => {
+                        if (response.ok) {
+                            lipSyncVideoSource.src = cacheBustedUrl;
+                            lipSyncVideo.load();
+                            lipSyncVideoContainer.style.display = 'block';
+                            clearInterval(checkVideoInterval); // Stop checking once the video is available
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error checking video existence:', error);
+                    });
+            }
         });
+
     </script>
 </body>
 </html>

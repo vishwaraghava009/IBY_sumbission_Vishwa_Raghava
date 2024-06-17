@@ -33,7 +33,6 @@ class Handler(FileSystemEventHandler):
             return None
 
         elif event.event_type == 'created':
-            # Run the motion transfer and MuseTalk inference
             audio_file_path = event.src_path
             handle_new_audio_file(audio_file_path)
 
@@ -41,11 +40,9 @@ class Handler(FileSystemEventHandler):
         self.process(event)
 
 def handle_new_audio_file(audio_file_path):
-    # Path to the motion transferred video directory
     motion_video_dir = "Virtual-Therapist/media/motion_video/vox/"
     output_video_dir = "Virtual-Therapist/media/output_video/avatars/avator1/"
     
-    # Wait until the motion transferred video is available
     while True:
         motion_videos = [f for f in os.listdir(motion_video_dir) if f.endswith('.mp4')]
         if motion_videos:
@@ -53,14 +50,11 @@ def handle_new_audio_file(audio_file_path):
             break
         time.sleep(5)
     
-    # Check if the avatar directory exists
     avatar_dir = "Virtual-Therapist/media/output_video/avatars/avator1/"
     preparation_needed = not os.path.exists(avatar_dir)
     
-    # Update the realtime.yaml configuration file
     update_realtime_yaml(motion_video_path, audio_file_path, preparation_needed)
     
-    # Run the MuseTalk inference script
     run_musetalk_inference()
 
 def update_realtime_yaml(video_path, audio_path, preparation):

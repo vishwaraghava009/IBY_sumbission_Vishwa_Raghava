@@ -1,0 +1,5 @@
+#leavethis folder empty
+#final results will not be saved here
+#look into the following path for the final results:
+#"Virtual-Therapist/MuseTlk/results/avatars/avator_1/vid_output/audio_0.mp4"
+# you can also copy the result into this directory but that would be an overhead on inference time if one does that.
