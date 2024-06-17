@@ -11,11 +11,6 @@ def list_images():
     return images
 
 
-def check_video_existence(request):
-    lip_sync_video_path = os.path.join(settings.MUSETALK_ROOT, 'results', 'avatars', 'avatar1', 'vid_output', 'audio_0.mp4')
-    video_exists = os.path.exists(lip_sync_video_path)
-    return JsonResponse({'exists': video_exists})
-
 
 @csrf_exempt
 def index(request):
@@ -56,8 +51,7 @@ def index(request):
 
             return render(request, 'therapy/index.html', {
                 'uploaded_file_url': uploaded_file_url,
-                'images': images,
-                'lip_sync_video_url': lip_sync_video_url
+                'images': images
             })
 
     return render(request, 'therapy/index.html', {'images': images})

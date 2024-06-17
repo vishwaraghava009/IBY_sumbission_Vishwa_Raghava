@@ -84,10 +84,10 @@
             </div>
         {% endif %}
 
-        <div id="lip-sync-video-container" class="lip-sync-video" style="text-align: center; display: none;">
+        <div id="lip-sync-video-container" class="lip-sync-video" style="text-align: center;">
             <h2>Lip Sync Video</h2>
             <video id="lip-sync-video" controls autoplay>
-                <source id="lip-sync-video-source" src="" type="video/mp4">
+                <source id="lip-sync-video-source" src="/MuseTalk/results/avatars/avator1/vid_output/audio_0.mp4" type="video/mp4">
                 Your browser does not support the video tag.
             </video>
         </div>
@@ -107,97 +107,117 @@
     </div>
     <script>
         document.addEventListener("DOMContentLoaded", function() {
-            const lipSyncVideoContainer = document.getElementById('lip-sync-video-container');
-            const lipSyncVideo = document.getElementById('lip-sync-video');
-            const lipSyncVideoSource = document.getElementById('lip-sync-video-source');
+            const video = document.getElementById('video');
+            const emotionDiv = document.getElementById('emotion');
+            const transcriptDiv = document.getElementById('transcript');
+            const llmResponseDiv = document.getElementById('llm-response');
+            let startTime;
+            let sessionId = null;
 
-            const lipSyncVideoUrl = "{{ lip_sync_video_url }}";
-
-            function checkVideoExistence() {
-                fetch('/api/check-video-existence/')
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.exists) {
-                            lipSyncVideoSource.src = lipSyncVideoUrl;
-                            lipSyncVideo.load();
-                            lipSyncVideoContainer.style.display = 'block';
-                        } else {
-                            lipSyncVideoContainer.style.display = 'none';
-                        }
-                    })
-                    .catch(error => console.error('Error checking video existence:', error));
+            function generateSessionId() {
+                return 'session-' + Math.random().toString(36).substr(2, 9);
             }
-
-            setInterval(checkVideoExistence, 5000); // Check every 5 seconds
-
-            fetch('/api/list-images/')
-                .then(response => response.json())
-                .then(data => {
-                    const select = document.getElementById('therapist_image_select');
-                    data.images.forEach(image => {
-                        const option = document.createElement('option');
-                        option.value = image;
-                        option.textContent = image;
-                        select.appendChild(option);
-                    });
-                })
-                .catch(error => console.error('Error fetching images:', error));
-        });
-
-        const video = document.getElementById('video');
-        const emotionDiv = document.getElementById('emotion');
-        const transcriptDiv = document.getElementById('transcript');
-        const llmResponseDiv = document.getElementById('llm-response');
-        let startTime;
-        let sessionId = null;
-
-        function generateSessionId() {
-            return 'session-' + Math.random().toString(36).substr(2, 9);
-        }
-        function getCookie(name) {
-            let cookieValue = null;
-            if (document.cookie && document.cookie !== '') {
-                const cookies = document.cookie.split(';');
-                for (let i = 0; i < cookies.length; i++) {
-                    const cookie = cookies[i].trim();
-                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                        break;
+            function getCookie(name) {
+                let cookieValue = null;
+                if (document.cookie && document.cookie !== '') {
+                    const cookies = document.cookie.split(';');
+                    for (let i = 0; i < cookies.length; i++) {
+                        const cookie = cookies[i].trim();
+                        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                            break;
+                        }
                     }
                 }
+                return cookieValue;
             }
-            return cookieValue;
-        }
 
-        const csrftoken = getCookie('csrftoken');
+            const csrftoken = getCookie('csrftoken');
 
-        navigator.mediaDevices.getUserMedia({ video: true })
-            .then(stream => {
-                video.srcObject = stream;
-                const canvas = document.createElement('canvas');
-                const context = canvas.getContext('2d');
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(stream => {
+                    video.srcObject = stream;
+                    const canvas = document.createElement('canvas');
+                    const context = canvas.getContext('2d');
 
-                video.addEventListener('play', () => {
-                    startTime = new Date().getTime(); // Initialize startTime
-                    console.log('Video started playing, startTime:', startTime);
-                    const updateEmotion = () => {
-                        if (video.paused || video.ended) {
-                            return;
-                        }
-                        const currentTime = new Date().getTime() - startTime;
-                        console.log('Current time:', currentTime);
-                        canvas.width = video.videoWidth;
-                        canvas.height = video.videoHeight;
-                        context.drawImage(video, 0, 0, canvas.width, canvas.height);
-                        canvas.toBlob(blob => {
+                    video.addEventListener('play', () => {
+                        startTime = new Date().getTime(); // Initialize startTime
+                        console.log('Video started playing, startTime:', startTime);
+                        const updateEmotion = () => {
+                            if (video.paused || video.ended) {
+                                return;
+                            }
+                            const currentTime = new Date().getTime() - startTime;
+                            console.log('Current time:', currentTime);
+                            canvas.width = video.videoWidth;
+                            canvas.height = video.videoHeight;
+                            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                            canvas.toBlob(blob => {
+                                const formData = new FormData();
+                                formData.append('frame', blob);
+                                formData.append('timestamp', currentTime);
+                                formData.append('session_id', sessionId);
+
+                                console.log('Sending frame to API with timestamp:', currentTime);
+
+                                fetch('/api/emotion-detection/', {
+                                    method: 'POST',
+                                    headers: {
+                                        'X-CSRFToken': csrftoken
+                                    },
+                                    body: formData
+                                })
+                                .then(response => response.json())
+                                .then(data => {
+                                    if (data.emotion) {
+                                        emotionDiv.innerText = 'Emotion: ' + data.emotion;
+                                        console.log('Emotion detected:', data.emotion);
+                                    } else if (data.error) {
+                                        console.error('Error:', data.error);
+                                    }
+                                })
+                                .catch(error => console.error('Fetch error:', error));
+                            }, 'image/jpeg');
+                            setTimeout(updateEmotion, 1000); // Update emotion every second
+                        };
+                        updateEmotion();
+                    });
+                })
+                .catch(error => {
+                    console.error('Error accessing the camera', error);
+                });
+
+            // JavaScript for audio recording and analysis
+            const recordButton = document.getElementById('recordButton');
+            const stopButton = document.getElementById('stopButton');
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            let mediaRecorder;
+            let audioChunks = [];
+
+            recordButton.addEventListener('click', () => {
+                startTime = new Date().getTime();
+                console.log('Recording started, startTime:', startTime);
+                sessionId = generateSessionId();
+                audioChunks = []; // Reset the audio chunks
+                navigator.mediaDevices.getUserMedia({ audio: true })
+                    .then(stream => {
+                        mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+                        mediaRecorder.start();
+                        mediaRecorder.ondataavailable = event => {
+                            const currentTime = new Date().getTime() - startTime;
+                            console.log('Audio data available, currentTime:', currentTime);
+                            audioChunks.push({ chunk: event.data, timestamp: currentTime });
+                        };
+                        mediaRecorder.onstop = () => {
+                            const audioBlob = new Blob(audioChunks.map(a => a.chunk), { type: 'audio/webm' });
                             const formData = new FormData();
-                            formData.append('frame', blob);
-                            formData.append('timestamp', currentTime);
+                            formData.append('audio', audioBlob);
+                            formData.append('timestamps', JSON.stringify(audioChunks.map(a => a.timestamp)));
                             formData.append('session_id', sessionId);
 
-                            console.log('Sending frame to API with timestamp:', currentTime);
+                            console.log('Sending audio to API');
 
-                            fetch('/api/emotion-detection/', {
+                            fetch('/api/speech-analysis/', {
                                 method: 'POST',
                                 headers: {
                                     'X-CSRFToken': csrftoken
@@ -206,104 +226,43 @@
                             })
                             .then(response => response.json())
                             .then(data => {
-                                if (data.emotion) {
-                                    emotionDiv.innerText = 'Emotion: ' + data.emotion;
-                                    console.log('Emotion detected:', data.emotion);
+                                if (data.transcription) {
+                                    console.log('Transcription:', data.transcription);
+                                    updateTranscript(data.transcription);
+                                }
+                                if (data.llm_response) {
+                                    console.log('LLM Response:', data.llm_response);
+                                    updateLLMResponse(data.llm_response);
                                 } else if (data.error) {
                                     console.error('Error:', data.error);
                                 }
                             })
                             .catch(error => console.error('Fetch error:', error));
-                        }, 'image/jpeg');
-                        setTimeout(updateEmotion, 1000); // Update emotion every second
-                    };
-                    updateEmotion();
-                });
-            })
-            .catch(error => {
-                console.error('Error accessing the camera', error);
+
+                        };
+                        recordButton.disabled = true;
+                        stopButton.disabled = false;
+                    })
+                    .catch(error => console.error('Error accessing the microphone', error));
             });
 
-        // JavaScript for audio recording and analysis
-        const recordButton = document.getElementById('recordButton');
-        const stopButton = document.getElementById('stopButton');
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        let mediaRecorder;
-        let audioChunks = [];
+            stopButton.addEventListener('click', () => {
+                mediaRecorder.stop();
+                recordButton.disabled = false;
+                stopButton.disabled = true;
+            });
 
-        recordButton.addEventListener('click', () => {
-            startTime = new Date().getTime();
-            console.log('Recording started, startTime:', startTime);
-            sessionId = generateSessionId();
-            audioChunks = []; // Reset the audio chunks
-            navigator.mediaDevices.getUserMedia({ audio: true })
-                .then(stream => {
-                    mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-                    mediaRecorder.start();
-                    mediaRecorder.ondataavailable = event => {
-                        const currentTime = new Date().getTime() - startTime;
-                        console.log('Audio data available, currentTime:', currentTime);
-                        audioChunks.push({ chunk: event.data, timestamp: currentTime });
-                    };
-                    mediaRecorder.onstop = () => {
-                        const audioBlob = new Blob(audioChunks.map(a => a.chunk), { type: 'audio/webm' });
-                        const formData = new FormData();
-                        formData.append('audio', audioBlob);
-                        formData.append('timestamps', JSON.stringify(audioChunks.map(a => a.timestamp)));
-                        formData.append('session_id', sessionId);
+            // JavaScript for updating the transcript
+            function updateTranscript(text) {
+                transcriptDiv.innerText = 'Transcript:\n' + text;
+            }
 
-                        console.log('Sending audio to API');
+            // JavaScript for updating the LLM response
+            function updateLLMResponse(text) {
+                llmResponseDiv.innerText = 'Jessie: ' + text;
+            }
 
-                        fetch('/api/speech-analysis/', {
-                            method: 'POST',
-                            headers: {
-                                'X-CSRFToken': csrftoken
-                            },
-                            body: formData
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.transcription) {
-                                console.log('Transcription:', data.transcription);
-                                updateTranscript(data.transcription);
-                            }
-                            if (data.llm_response) {
-                                console.log('LLM Response:', data.llm_response);
-                                updateLLMResponse(data.llm_response);
-                            }
-                            if (data.video_url) {
-                                lipSyncVideoSource.src = data.video_url;
-                                lipSyncVideo.load();
-                                lipSyncVideoContainer.style.display = 'block';
-                            } else if (data.error) {
-                                console.error('Error:', data.error);
-                            }
-                        })
-                        .catch(error => console.error('Fetch error:', error));
-
-                    };
-                    recordButton.disabled = true;
-                    stopButton.disabled = false;
-                })
-                .catch(error => console.error('Error accessing the microphone', error));
         });
-
-        stopButton.addEventListener('click', () => {
-            mediaRecorder.stop();
-            recordButton.disabled = false;
-            stopButton.disabled = true;
-        });
-
-        // JavaScript for updating the transcript
-        function updateTranscript(text) {
-            transcriptDiv.innerText = 'Transcript:\n' + text;
-        }
-
-        // JavaScript for updating the LLM response
-        function updateLLMResponse(text) {
-            llmResponseDiv.innerText = 'Jessie: ' + text;
-        }
-
     </script>
 </body>
 </html>

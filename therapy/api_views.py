@@ -20,12 +20,24 @@ from dotenv import load_dotenv
 import yaml
 import logging
 import shutil
+from django.conf import settings
 
 
 load_dotenv()
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
-GROQ_API_KEY = "*z"
+GROQ_API_KEY = "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"
 client = Groq(api_key=GROQ_API_KEY)
+
+
+class CheckVideoExistenceAPI(APIView):
+    def get(self, request, *args, **kwargs):
+        session_id = request.GET.get('session_id')
+        if session_id:
+            video_path = os.path.join(settings.MEDIA_ROOT, 'output_video', f'{session_id}_audio_0.mp4')
+            exists = os.path.exists(video_path)
+            return JsonResponse({'exists': exists})
+        return JsonResponse({'error': 'No session_id provided'}, status=400)
+
 
 class EmotionDetectionView(APIView):
     def post(self, request, *args, **kwargs):
@@ -264,7 +276,7 @@ class SpeechAnalysisView(APIView):
                 'tone_emotions': tone_emotions,
                 'llm_response': therapist_reply,
                 'audio_url': audio_filename,
-                'video_url': f'/media/output_video/avatars/avator1/vid_output/{session_id}_audio_0.mp4'
+                'video_url': f'/MuseTalk/results/avatars/avator_1/vid_output/audio_0.mp4'
             })
         except subprocess.CalledProcessError as e:
             print(f"Error running inference script: {e}")
@@ -277,7 +289,7 @@ def handle_new_audio_file(audio_file_path, session_id):
     logging.info(f"Handling new audio file: {audio_file_path}")
     # Path to the motion transferred video directory
     motion_video_dir = os.path.abspath("media/motion_video/vox/")
-    output_video_dir = os.path.abspath(f"media/output_video/avatars/avator1/vid_output/")
+    output_video_dir = os.path.abspath(f"media/output_video/")
     
     # Wait until the motion transferred video is available
     while True:
@@ -290,7 +302,7 @@ def handle_new_audio_file(audio_file_path, session_id):
         time.sleep(5)
     
     # Check if the avatar directory exists
-    avatar_dir = os.path.abspath("MuseTalk/results/avatars/avator1/")
+    avatar_dir = os.path.abspath("MuseTalk/results/avatars/avator_1/")
     preparation_needed = not os.path.exists(avatar_dir)
     
     # Update the realtime.yaml configuration file
@@ -298,13 +310,6 @@ def handle_new_audio_file(audio_file_path, session_id):
     
     # Run the MuseTalk inference script
     run_musetalk_inference()
-
-    # Copy the generated video to the media directory
-    src_video_path = os.path.abspath("MuseTalk/results/avatars/avator1/vid_output/audio_0.mp4")
-    dst_video_path = os.path.join(output_video_dir, f"{session_id}_audio_0.mp4")
-    os.makedirs(output_video_dir, exist_ok=True)
-    shutil.copy(src_video_path, dst_video_path)
-    logging.info(f"Copied generated video to: {dst_video_path}")
 
 def update_realtime_yaml(video_path, audio_path, preparation):
     config_path = os.path.abspath("MuseTalk/configs/inference/realtime.yaml")
