@@ -10,8 +10,6 @@ def list_images():
     images = [f for f in os.listdir(pics_dir) if os.path.isfile(os.path.join(pics_dir, f))]
     return images
 
-
-
 @csrf_exempt
 def index(request):
     images = list_images()
@@ -22,12 +20,14 @@ def index(request):
             uploaded_file_url = os.path.join('media', 'pics', selected_image)
             
             source_image_path = os.path.join(settings.MEDIA_ROOT, 'pics', selected_image)
-            driving_video_path = os.path.join(settings.MEDIA_ROOT, 'drive_video', 'jessie.mp4')  #change the name of the driving video
+            driving_video_path = os.path.join(settings.MEDIA_ROOT, 'drive_video', 'jessie.mp4')  # Change the name of the driving video
             output_video_dir = os.path.join(settings.MEDIA_ROOT, 'motion_video')
             output_video_path = os.path.join(output_video_dir, f'{selected_image.split(".")[0]}_motion.mp4')
 
-            os.makedirs(output_video_dir, exist_ok=True)
+            os.makedirs(output_video_dir, exist_okay=True)
             
+            # Removed the LIA specific code
+            """
             try:
                 subprocess.run([
                     'python', 'LIA/run_demo.py',
@@ -40,6 +40,7 @@ def index(request):
             except subprocess.CalledProcessError as e:
                 print(f"Error running motion transfer: {e}")
                 return HttpResponse(f"Error running motion transfer: {e}", status=500)
+            """
 
             lip_sync_video_path = os.path.join(settings.MUSETALK_ROOT, 'results', 'avatars', 'avatar1', 'vid_output', 'audio_0.mp4')
             if os.path.exists(lip_sync_video_path):
