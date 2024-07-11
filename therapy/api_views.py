@@ -25,7 +25,7 @@ from django.conf import settings
 
 load_dotenv()
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
-GROQ_API_KEY = "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"  #my groq_api_key replace it with yours if this doen't work(as itvgets exposed on git now)
+GROQ_API_KEY = "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"  #my groq_api_key replace it with yours if this doen't work(as itvgets exposed on git now)
 client = Groq(api_key=GROQ_API_KEY)
 
 
@@ -296,9 +296,23 @@ def handle_new_audio_file(audio_file_path, session_id):
     
     avatar_dir = os.path.abspath("MuseTalk/results/avatars/avator_1/")
     preparation_needed = not os.path.exists(avatar_dir)
-    
+    update_realtime_yaml(motion_video_path, audio_file_path, preparation_needed)
     run_musetalk_inference()
+def update_realtime_yaml(video_path, audio_path, preparation):
+    config_path = os.path.abspath("MuseTalk/configs/inference/realtime.yaml")
+    with open(config_path, 'r') as file:
+        config = yaml.safe_load(file)
 
+    config['avator_1']['preparation'] = preparation
+    config['avator_1']['video_path'] = video_path
+
+    # Ensure only audio_0 is present in audio_clips
+    config['avator_1']['audio_clips'] = {'audio_0': audio_path}
+
+    with open(config_path, 'w') as file:
+        yaml.safe_dump(config, file)
+
+    logging.info(f"Updated realtime.yaml with video_path: {video_path} and audio_path: {audio_path}")
 def run_musetalk_inference():
     command = [
         'python', '-m', 'scripts.realtime_inference',
