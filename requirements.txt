@@ -1,0 +1,30 @@
+# conda install pytorch3d -c pytorch3d
+
+pytorch-msssim
+chardet
+lpips
+mediapipe
+colored-traceback
+pygments 
+torchsummary
+moviepy
+decord
+omegaconf
+memory_profiler
+face_recognition
+facenet_pytorch
+rembg
+lpips
+tensorboard
+torch
+opencv-python
+Pillow
+torchvision
+scipy
+scikit-learn
+pandas
+hsemotion_onnx
+# insightface
+transformers
+torchaudio
+# Vgg19

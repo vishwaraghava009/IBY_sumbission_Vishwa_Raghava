@@ -1,0 +1,7 @@
+# Ignore specific directories
+CelebV-HQ/
+dlib/
+ffhq-dataset/
+myenv/
+models/cifar10_models/
+models/state_dicts.zip
