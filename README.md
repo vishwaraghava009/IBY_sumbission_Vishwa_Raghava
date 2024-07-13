@@ -595,5 +595,5 @@ This repository is meant for the UI integration of the Human Talking Head pipeli
    ```
    This hosts the server on port 7000.
 
-
+**Note**: Make sure to delete the existing avatar before trying it on a differnt person.
 Please refer to the provided documentation if you face any issues.
