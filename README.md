@@ -221,9 +221,7 @@ This repository is meant for the UI integration of the Human Talking Head pipeli
 
            pred_dur[-1] += 5
 
-           pred_aln_trg = torch.zeros(input_lengths, int(pred_dur.sum().
-
-data))
+           pred_aln_trg = torch.zeros(input_lengths, int(pred_dur.sum().data))
            c_frame = 0
            for i in range(pred_aln_trg.size(0)):
                pred_aln_trg[i, c_frame:c_frame + int(pred_dur[i].data)] = 1
@@ -419,9 +417,7 @@ data))
            for i,frame in enumerate(tqdm(self.frame_list_cycle)):
                cv2.imwrite(f"{self.full_imgs_path}/{str(i).zfill(8)}.png",frame)
 
-               face_box = self.coord_list_cycle
-
-[i]
+               face_box = self.coord_list_cycle[i]
                mask,crop_box = get_image_prepare_material(frame,face_box)
                cv2.imwrite(f"{self.mask_out_path}/{str(i).zfill(8)}.png",mask)
                self.mask_coords_list_cycle += [crop_box]
