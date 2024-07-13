@@ -6,7 +6,7 @@ This repository is meant for the UI integration of the Human Talking Head pipeli
 ### Important Note:
 - This pipeline does not include motion transfer models as we changed the plan to storing motion transferred video in our backend.
 - Go through the python notebook or install the same libraries on your local machine as well by cloning the repo and by following the mentioned changes in the colab notebook.
-- You may have to create a new Groq API key if mine doesn't work and replace mine in the `therapy/api_vies.py` file.
+- You may have to create a new Groq API key if mine doesn't work and replace mine in the `therapy/api_views.py` file.
 - You may also have to create an Ngrok auth number as well if mine doesn't work; this is specific only if you are using colab for execution.
 - Recommended to use V100 GPU or advanced.
 
