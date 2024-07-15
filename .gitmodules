@@ -1,9 +1,0 @@
-[submodule "MuseTalk"]
-	path = MuseTalk
-	url = https://github.com/TMElyralab/MuseTalk.git
-[submodule "AdaSR-TalkingHead"]
-	path = AdaSR-TalkingHead
-	url = https://github.com/Songluchuan/AdaSR-TalkingHead.git
-[submodule "LivePortrait"]
-	path = LivePortrait
-	url = https://github.com/KwaiVGI/LivePortrait.git
