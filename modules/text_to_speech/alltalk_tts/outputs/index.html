@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Talking Head</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: row;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+        #left-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: #f0f0f0;
+            padding: 20px;
+        }
+        #right-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            background-color: #ffffff;
+            border-left: 1px solid #ccc;
+            padding: 20px;
+        }
+        #fileInput, #generateAudioButton, #languageSelector {
+            margin: 10px 0;
+        }
+        #expression-holder {
+            margin-top: 20px;
+        }
+        #chatBox {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 10px;
+            overflow-y: auto;
+            background-color: #fafafa;
+        }
+        .message {
+            margin: 5px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .user-message {
+            align-self: flex-end;
+            background-color: #dcf8c6;
+        }
+        .bot-message {
+            align-self: flex-start;
+            background-color: #e6e6e6;
+        }
+        #chatInputContainer {
+            display: flex;
+            margin-top: 10px;
+        }
+        #chatInput {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        #sendButton {
+            margin-left: 10px;
+            padding: 10px;
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #sendButton:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div id="left-panel">
+        <input type="file" id="fileInput">
+        <button id="generateAudioButton">Generate Audio</button>
+        <select id="languageSelector">
+            <option value="en">English</option>
+            <option value="ja">Japanese</option>
+        </select>
+        <div id="expression-holder" style="display: none;">
+            <img id="expression-image" class="expression" src="" alt="Character Expression">
+        </div>
+    </div>
+    <div id="right-panel">
+        <div id="chatBox"></div>
+        <div id="chatInputContainer">
+            <textarea id="chatInput" rows="2" placeholder="Type your message here..."></textarea>
+            <button id="sendButton">Send</button>
+        </div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const serverAddress = 'http://localhost:5100';
+            const jsonFilePath = 'http://0.0.0.0:8000/morph_indices.json';
+            const audioFilePath = 'http://0.0.0.0:8000/myoutputfile.wav';
+            const imgElement = document.getElementById('expression-image');
+            const expressionHolder = document.getElementById('expression-holder');
+            const chatBox = document.getElementById('chatBox');
+            const chatInput = document.getElementById('chatInput');
+            const sendButton = document.getElementById('sendButton');
+            const languageSelector = document.getElementById('languageSelector');
+            const expressions = ["anger", "joy", "grief", "fear", "surprise"];
+            let currentExpressionIndex = 0;
+
+            function loadCharacter() {
+                const formData = new FormData();
+                const imageFile = document.getElementById('fileInput').files[0];
+                formData.append('file', imageFile);
+
+                fetch(`${serverAddress}/api/talkinghead/load`, {
+                    method: 'POST',
+                    body: formData,
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to load character');
+                    }
+                    displayTalkingHead();
+                })
+                .catch(error => console.error('Error loading character:', error));
+            }
+
+            function generateAudio(text) {
+                const voice = "male_01.wav";
+                const language = languageSelector.value;
+
+                fetch(`${serverAddress}/api/generate_audio`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ text, voice, language }),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === "success") {
+                        console.log("Audio generated successfully, checking for JSON file update...");
+                        checkJsonFileUpdate();
+                    } else {
+                        console.error('Error generating audio:', data.message);
+                    }
+                })
+                .catch(error => console.error('Error generating audio:', error));
+            }
+
+            function checkJsonFileUpdate() {
+                let lastModifiedTime = null;
+                const checkUpdate = () => {
+                    fetch(jsonFilePath, { method: 'HEAD' })
+                        .then(response => {
+                            const newModifiedTime = new Date(response.headers.get('Last-Modified')).getTime();
+                            if (lastModifiedTime === null || newModifiedTime > lastModifiedTime) {
+                                console.log("JSON file updated.");
+                                lastModifiedTime = newModifiedTime;
+                                startTalking();
+                                playAudio();
+                            } else {
+                                console.log("JSON file not yet updated, checking again...");
+                                setTimeout(checkUpdate, 1000);  // Check again after 1 second
+                            }
+                        })
+                        .catch(error => console.error('Error checking JSON file update:', error));
+                };
+
+                checkUpdate();
+            }
+
+            function startTalking() {
+                console.log("Calling start_talking endpoint...");
+                fetch(`${serverAddress}/api/talkinghead/start_talking`, { method: 'GET' })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Failed to start talking');
+                        }
+                        console.log("Talking started.");
+                    })
+                    .catch(error => console.error('Error starting talking:', error));
+            }
+
+            function playAudio() {
+                console.log("Playing audio from:", audioFilePath);
+                const audio = new Audio(audioFilePath);
+                audio.play()
+                    .then(() => {
+                        console.log("Audio playback started.");
+                    })
+                    .catch(error => {
+                        console.error('Error playing audio:', error);
+                    });
+            }
+
+            function changeExpressionPeriodically() {
+                setInterval(() => {
+                    changeExpression();
+                }, 5000);
+            }
+
+            function changeExpression() {
+                const currentExpression = expressions[currentExpressionIndex];
+                currentExpressionIndex = (currentExpressionIndex + 1) % expressions.length;
+
+                fetch(`${serverAddress}/api/talkinghead/set_emotion`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ emotion_name: currentExpression }),
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to set emotion');
+                    }
+                    console.log(`Expression set to: ${currentExpression}`);
+                })
+                .catch(error => console.error('Error setting emotion:', error));
+            }
+
+            function displayTalkingHead() {
+                const talkingheadResultFeedSrc = `${serverAddress}/api/talkinghead/result_feed`;
+
+                expressionHolder.style.display = 'block';
+                if (imgElement.src !== talkingheadResultFeedSrc) {
+                    imgElement.src = talkingheadResultFeedSrc;
+                }
+            }
+
+            function getLLMResponse(prompt) {
+                fetch(`${serverAddress}/api/chat`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ prompt }),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    const llmResponse = data.response;
+                    console.log("LLM Response:", llmResponse);
+                    addMessageToChatBox('user', prompt);
+                    addMessageToChatBox('bot', llmResponse);
+                    generateAudio(llmResponse);
+                })
+                .catch(error => console.error('Error fetching LLM response:', error));
+            }
+
+            function addMessageToChatBox(sender, message) {
+                const messageElement = document.createElement('div');
+                messageElement.classList.add('message');
+                messageElement.classList.add(sender === 'user' ? 'user-message' : 'bot-message');
+                messageElement.textContent = message;
+                chatBox.appendChild(messageElement);
+                chatBox.scrollTop = chatBox.scrollHeight;
+            }
+
+            sendButton.addEventListener('click', () => {
+                const userMessage = chatInput.value;
+                if (userMessage.trim()) {
+                    getLLMResponse(userMessage);
+                    chatInput.value = '';
+                }
+            });
+
+            document.getElementById('fileInput').addEventListener('change', loadCharacter);
+            document.getElementById('generateAudioButton').addEventListener('click', () => generateAudio("Okay, Okay! I understand. Just two more slides. And we are done with this."));
+        });
+    </script>
+</body>
+</html>

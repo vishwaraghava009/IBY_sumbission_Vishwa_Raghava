@@ -1,0 +1,9 @@
+voices/*.*
+models/*.*
+finetune/*.*
+config.json
+confignew.json
+models.json
+diagnostics.log
+cutclass/*.*
+alltalk_environment/*.*

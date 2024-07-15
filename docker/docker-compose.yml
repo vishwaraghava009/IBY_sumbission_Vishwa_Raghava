@@ -1,0 +1,60 @@
+version: "3"
+services:
+  sillytavern-extras:
+#    runtime: nvidia
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+#              either specify below which, or above how many. not both.
+#              device_ids: ['1'] 
+              capabilities: [gpu]
+    image: cohee1207/sillytavern-extras
+    build:
+      context: ../
+      dockerfile: docker/Dockerfile
+      args:
+        REQUIREMENTS: requirements.txt
+#       Possible Values:
+#         requirements.txt         - Use when running on Nvidia
+#         requirements-rocm.txt    - Use when running on AMD
+#         requirements-silicon.txt - Use for Apple M1 or M2 chipset.
+#
+#       Add-on Instructions: 
+#         Append the above with " -r " as separator and surround with quotes. 
+#         Example: REQUIREMENTS: "requirements.txt -r requirements-rvc.txt"
+#
+#       Possible Add-ons: 
+#         requirements-coqui.txt   - Required to run the COQUI TTS Module
+#         requirements-rvc.txt     - Required to run the Real-time Voice Cloning module
+#
+    volumes:
+      - "./cache:/root/.cache"
+      - "../api_key.txt:/sillytavern-extras/api_key.txt:rw"
+#     Options Module Volumes - Uncomment the lines for your desired modules before building.
+#
+#     ChromaDB - Utilized by ChromaDB.
+#     - "./chromadb:/chromadb"
+#
+#     Real-time Voice Cloning
+#     - "./models/rvc:/sillytavern-extras/data/models/rvc"
+#     
+    ports:
+      - "5100:5100"
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+    entrypoint: ["python", "server.py", "--enable-modules=caption,summarize,classify"]
+#   
+#   Additional Modules: 
+#     For a list of possible modules, refer to the "Modules" section on the main page at https://github.com/SillyTavern/SillyTavern-Extras?tab=readme-ov-file#modules .
+#     NOTE - Separate additional modules by commas in the "--enable-modules" list. DO NOT separate them with spaces.
+#     Example: Adding the RVC module would result in the entrypoint looking like the following:
+#       entrypoint: ["python", "server.py", "--enable-modules=caption,summarize,classify,rvc"]
+#
+#   Additional Flags:
+#     For a list of additional flags, refer to the "Options" section on the main page at https://github.com/SillyTavern/SillyTavern-Extras?tab=readme-ov-file#options .
+#     NOTE - Add each additional flag as an additional argument. They should be surrounded in quotes and comma separated from the previous arguments.
+#     Example: Adding the "--listen" flag to allow network communication would result in the entrypoint looking like the following:
+#       entrypoint: ["python", "server.py", "--enable-modules=caption,summarize,classify", "--listen"]

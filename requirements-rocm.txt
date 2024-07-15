@@ -1,0 +1,27 @@
+flask
+flask-cloudflared
+flask-cors
+flask-compress
+markdown
+Pillow==9.5.0
+colorama
+webuiapi
+--extra-index-url https://download.pytorch.org/whl/rocm5.6
+torch>=2.0.0+rocm5.4.2,<=2.1.0+rocm5.6
+torchvision>=0.15.0+rocm5.4.2,<=0.16.0+rocm5.6
+torchaudio>=2.0.0+rocm5.4.2,<=2.1.0+rocm5.6
+transformers
+silero-api-server
+diffusers
+accelerate
+chromadb
+sentence_transformers
+edge-tts
+matplotlib
+fastapi
+wxpython
+vosk
+sounddevice
+openai-whisper
+selenium
+huggingface-hub
